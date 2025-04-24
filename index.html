@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Solar Forecast Predictor</title>
+  <script type="module">
+    import { Client } from "https://esm.sh/@gradio/client";
+
+    async function getPrediction() {
+      const status = document.getElementById("status");
+      const output = document.getElementById("prediction");
+
+      // Initialize the status with emoji checklist format
+      status.innerHTML = `
+        <ul>
+          <li>🔄 Initializing...</li>
+          <li>🔌 API Call Made</li>
+          <li>🔍 Prediction Check</li>
+          <li>✅ Prediction Complete</li>
+        </ul>
+      `;
+
+      try {
+        const client = await Client.connect("vasudhevdharanish/solarForecast");
+        
+        // Update status after API call
+        const statusList = status.querySelectorAll("li");
+        statusList[1].innerHTML = "🔌 API Call Made ✅";
+
+        const result = await client.predict("/predict", {}); // No input parameters
+
+        // Update status after prediction
+        statusList[2].innerHTML = "🔍 Prediction Check ✅";
+        output.innerText = result.data[0];
+
+        // Update status to complete
+        statusList[3].innerHTML = "✅ Prediction Complete";
+        
+      } catch (error) {
+        status.innerHTML = `
+          <ul>
+            <li>🔄 Initializing...</li>
+            <li>🔌 API Call Made ❌</li>
+            <li>❌ Error: ${error.message}</li>
+          </ul>
+        `;
+        output.innerText = "Error: " + error.message;
+      }
+    }
+
+    async function loadDataset() {
+      const response = await fetch("mdu_data.csv");
+      const text = await response.text();
+      const rows = text.trim().split("\n").map(row => row.split(","));
+
+      const headers = rows[0];
+      const data = rows.slice(1);
+
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentDay = now.getDate();
+      const currentHour = now.getHours();
+
+      const matching = data.filter(row => {
+        const month = parseInt(row[1]);
+        const day = parseInt(row[2]);
+        const hour = parseInt(row[3]);
+        return month === currentMonth && day === currentDay && hour === currentHour;
+      });
+
+      if (matching.length === 0) {
+        document.getElementById("dataset").innerHTML = "<p>No matching historical data found for this time.</p>";
+        return;
+      }
+
+      let table = "<table border='1' cellpadding='5' style='border-collapse: collapse;'>";
+      table += `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`;
+      matching.forEach(row => {
+        table += `<tr>${row.map(col => `<td>${col}</td>`).join("")}</tr>`;
+      });
+      table += "</table>";
+
+      document.getElementById("dataset").innerHTML = table;
+    }
+
+    window.onload = () => {
+      getPrediction();
+      loadDataset();
+    };
+  </script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f4f7f9;
+      color: #333;
+      padding: 2em;
+      max-width: 900px;
+      margin: auto;
+    }
+    h1 {
+      color: #2d3e50;
+    }
+    .section {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      padding: 1.5em;
+      margin-bottom: 2em;
+    }
+    pre {
+      background: #efefef;
+      padding: 1em;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      text-align: left;
+    }
+    th {
+      background-color: #3f51b5;
+      color: white;
+    }
+    td, th {
+      padding: 8px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>☀️ Solar Forecast Predictor</h1>
+
+  <div class="section">
+    <h2>🔍 Process</h2>
+    <p>
+      This tool uses machine learning to predict the solar irradiance, temperature, and power for the current time (+15 minutes ahead).
+      The model is trained using historical solar data from previous years.
+    </p>
+    <div id="status">🔄 Initializing...</div>
+  </div>
+
+  <div class="section">
+    <h2>⚡ Prediction Output</h2>
+    <pre id="prediction">Loading prediction...</pre>
+  </div>
+
+  <div class="section">
+    <h2>📊 Dataset: Historical Forecast for This Time</h2>
+    <div id="dataset">Loading historical data...</div>
+  </div>
+
+</body>
+</html>
